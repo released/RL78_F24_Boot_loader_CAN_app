@@ -1,35 +1,178 @@
-# RL78/F24 MCU CAN device App
+# RL78/F24 CAN boot-loader application
 
-App 封裝完成後，可用瀏覽器開啟 `DefaultBuild/app_build_report.html`，核對實際 BIN 的
-metadata、256-byte 位址、CRC／SHA-256 與完整 App 向量表。
-欄位與 IRQ 修改說明見 [編譯摘要](https://released.github.io/slide_boot_loader_for_RL78/#device-app-build-report)。
+Boot-aware application for RL78/F24 R7F124FPJ5xFB, paired with
+`..\RL78_F24_Boot_loader_CAN`. The image starts at `0x2000` and expects Boot
+handoff, rather than standalone reset installation.
 
-此 App 由相鄰 `RL78_F24_Boot_loader_CAN` 驗證後啟動，起點 `0x2000`，不是獨立 reset image。
-請先讀 [完整分區、接線與操作說明](../RL78_F24_Boot_loader_CAN/README.md)。
-編輯 C header、加入 ISR、產表與 Tool 驗證，請依
-[MCU CAN device 設定與建置](https://released.github.io/slide_boot_loader_for_RL78/#device-metadata-vector-workshop)。
+INFO health page `0x1B` reports APP_READY after initialization, CAN setup
+and an observed timer IRQ. Tool checks live App version/build/size after END,
+complementing Boot CRC validation. See [update confirmation](https://released.github.io/slide_isp_tool_for_RL78/#update-confirmation)
+and the [porting guide (zh-TW)](https://released.github.io/slide_boot_loader_for_RL78/#boot-app-porting).
 
-- App 自己持有 `app_image_config.h`、`app_irq_handlers.h` 與 MTPJ 註冊的 ISR C 檔。
-- 共用映像契約引用相鄰 Boot 的 `image_metadata_config.h`（`IMAGE_*`）；
-  CAN 設定與 RAM 交接分別位於 `can_boot_config.h`、`boot_app_handoff.h`。
-  App 發行設定不另外複製共用分區／CAN 數值。
-- INFO 欄位讀取使用獨立編譯的 `image_metadata.c/.h`；Boot 也引用同一組模組。
-  解碼與完整 metadata／CRC 驗證的分工見 [C 模組移植](https://released.github.io/slide_boot_loader_for_RL78/#device-metadata-parser)。
-- `APP_IMAGE_VERSION_CONTROL` 預設 `0U`；有效已安裝 App 為 `1U` 時，一般更新限同版／新版。
-  單次降版操作見 [Tool 版本政策](https://released.github.io/slide_isp_tool_for_RL78/#force-old-version)。
-- 新普通 ISR 使用 `#pragma interrupt Name`，不可加 `vect=`；再加入本 App 的 C header。
-- CS+ pre-build 產生本 App 的 `app_irq_table.inc`／`app_identity.h`／`ftable.inc`，由 `ftable_RL78_F24.asm` 組譯；不重做 Boot。
-- 只編輯兩份 C header；生成的 INC／header／table 不手改。post-build 會拒絕與 C header 不同的已編譯 metadata。
-- `DefaultBuild/flash_app_variable_CRC.hex` 為初裝 App；`*_update.bin` 為 Tool CAN TAB 更新。
-  App 根目錄 `boot_app.hex` 可供 Boot／App 合併初裝。
-  原始 MOT 含 device file 的實體記錄，初裝使用封裝後的 HEX。
-- INFO／ENTER 控制使用 standard700/701、Classical500K；UART115200 只作診斷。
-- INFO health page `1B` 在初始化完成及觀察到 timer IRQ 後回報 APP_READY；Tool 更新後自動確認。
-- 診斷 UART 每秒輸出 `log(timer)-V1: counter`，counter 由零遞增；在 `app_runtime_log.h` 編輯 `APP_RUNTIME_LOG_TAG`，可選 `"V1"`／`"V2"`。標籤與 metadata 版本獨立，輸出在主迴圈執行。
-- Boot／App 可使用同名 ISR；實體向量、AA／55 owner 與 App mapping 的規則見 [中斷所有權](https://released.github.io/slide_boot_loader_for_RL78/#device-irq-ownership)。
-- CAN 250K／500K／1M 的 driver／metadata／配對建置步驟見 [Device CAN 速率](https://released.github.io/slide_boot_loader_for_RL78/#device-can-bitrate)。
-- 500K 正常更新、CRC、App 啟動與 UART counter 已完成實板驗證，見 [更新結果](https://released.github.io/slide_isp_tool_for_RL78/#f24-device-update-example)；不同速率、其他 IRQ、取消及斷電分別驗證。
+## Public examples and checkout layout
+
+- [CAN Transfer benchmark](https://github.com/released/RL78_F24_CAN_Transfer).
+- [Required sibling Boot project](https://github.com/released/RL78_F24_Boot_loader_CAN).
+- [This App project](https://github.com/released/RL78_F24_Boot_loader_CAN_app).
+
+Keep the exact repository names under the same parent; remove `-main` after
+ZIP extraction. App uses its own SC output and the Boot board sources,
+image/CAN/RAM contracts, parser and build helpers. App alone is not a
+self-contained checkout. The [Boot README](https://github.com/released/RL78_F24_Boot_loader_CAN#readme)
+owns wiring, full Flash geometry, Boot decisions and recovery.
+
+## App-only IRQ extension
+
+Edit `app_image_config.h` and `app_irq_handlers.h`. Pre-build generates
+`ftable.inc`, `app_identity.h`, `app_irq_table.inc` and the
+`ftable_RL78_F24.asm` wrapper. Inspect these outputs, but edit their C inputs.
+Post-build rejects stale linked metadata/vectors after configuration changes.
+
+App release settings belong to `app_image_config.h`. Shared
+`image_metadata_config.h` owns format/MCU/Flash/policy/IRQ ABI;
+`can_boot_config.h` owns CAN and `boot_app_handoff.h` owns no-init RAM.
+`image_metadata.c/.h` is compiled independently for App parsing and Boot
+validation, with expected values from `image_metadata_profile.c`.
+See the [C-header workshop](https://released.github.io/slide_boot_loader_for_RL78/#device-metadata-vector-workshop)
+and [metadata C APIs](https://released.github.io/slide_boot_loader_for_RL78/#device-metadata-parser).
+
+For each added normal interrupt:
+
+1. Find the physical vector byte address in this MCU `iodefine.h` and hardware
+   interrupt-vector table.
+2. Register its C source in this App CS+ project.
+3. Define one global `#pragma interrupt Name` ISR without `vect=`.
+4. Add the vector/function pair to `APP_IRQ_HANDLERS(X)`.
+5. Initialize the peripheral, clear pending causes and enable used IRQs;
+   clean rebuild/update App.
+
+The sample maps `0x2E` (`INTTM01`, TAU0 channel 1) to `Device_TimerIsr`.
+Boot owns physical vectors; the App table supplies RETI destinations.
+Boot/App may use the same ISR name because they are separate linked images.
+Unused sources stay masked; default RETI does not clear peripheral causes.
+See [interrupt ownership](https://released.github.io/slide_boot_loader_for_RL78/#device-irq-ownership).
+
+## Memory layout
+
+| Range | Purpose |
+| --- | --- |
+| `0x00000..0x01FFF` | Reserved Boot; outside the update BIN |
+| `0x02000..0x020FF` | 64 four-byte App branch entries |
+| `0x02100..0x021FF` | 256-byte metadata region, format 6 |
+| `0x02100..0x0217F` | 128-byte defined core |
+| `0x02180..0x021FF` | 128 reserved bytes, `0xFF` |
+| `0x02200..linked end` | App startup/code/constants |
+| Final four image bytes | Little-endian CRC32 |
+| After image end through `0x3FBFF` | Outside this image when below capacity |
+| `0x3FC00..0x3FFFF` | Protected last 1 KiB |
+
+App slot = `0x2000 + physical_vector_byte_address * 2`.
+Capacity is `0x3DC00` (252928) bytes; map-derived actual size is four-byte
+aligned and includes table, metadata and CRC.
+
+## Runtime identity and boot provenance
+
+`APP_RUNTIME_LOG_TAG` in `app_runtime_log.h` is an observation tag independent
+of the metadata semantic version. Select `"V1"` or `"V2"` and clean rebuild
+App for a distinguishable update test.
+
+```text
+F24 CAN DEVICE APP: boot-validated; X1=4M CPU/CAN40
+app image tag: V1
+CAN update: completed
+log(timer)-V1: 0
+log(timer)-V1: 1
+```
+
+`boot-validated` means Boot supplied the one-shot signature at `0xFF714`.
+`CAN update: completed` appears only when the separate signature at `0xFF718`
+records a completed update. App consumes/clears both before board
+initialization; missing handoff requests Boot. The decimal counter starts
+at zero and prints once per second in main, not the timer ISR.
+
+## CAN boot entry
+
+Classical CAN defaults to 500 kbit/s: P10 TX, P11 RX, P12 LOW.
+UART0 P15/P16 is diagnostic output at 115200. Clock is X1 4 MHz ->
+PLL 80 MHz -> CPU/CAN 40 MHz. CAN requests are polled; TAU0 channel 1 uses IRQ.
+
+For analyzer discovery send standard `0x700`, DLC 2, `07 00`; App replies
+on `0x701`, DLC 8, INFO page 0 with application state. ENTER `0x06`, DLC 1,
+is acknowledged before recording the request at `0xFF71C` and resetting.
+Boot consumes it and starts the valid-App inactivity window.
+Tool operation is `Discover Target` -> `Enter Boot` -> `Start Device Update`;
+discovery already reporting Boot skips ENTER. The [operation guide](https://released.github.io/slide_isp_tool_for_RL78/#mcu-can-device)
+covers the 30-second pre-START timeout and re-discovery.
+
+The paired Boot `can_boot_config.h` owns IDs/rate declarations;
+`common/f24_device_config.h` owns timing overrides. For a different bitrate,
+update the matching Boot/App configuration and follow the [250K/500K/1M steps](https://released.github.io/slide_boot_loader_for_RL78/#device-can-bitrate).
+Host Link baud and diagnostic UART baud are independent settings.
+
+`APP_IMAGE_VERSION_CONTROL` defaults to `0U`. An installed valid App with `1U`
+allows ordinary same/newer App semantic versions. Boot/App releases are
+independent; minimum Boot and IRQ/layout contracts establish compatibility.
+See [version policy and maintenance](https://released.github.io/slide_isp_tool_for_RL78/#force-old-version).
+CRC and version ordering are not cryptographic authentication.
+
+## Build and artifacts
+
+Use Windows PowerShell 5.1/.NET and CS+/CC-RL, without Python or SRecord.
+From this App directory:
 
 ```powershell
 ..\RL78_F24_Boot_loader_CAN\build.ps1 -Kind app -AppProject .
 ```
+
+For initial combined images, build Boot first; `build.ps1 -Kind all` from
+Boot builds Transfer, Boot and App. An App-only release does not rebuild Boot.
+MTPJ pre/post-build hooks run the paired `tools/prepare_projects.ps1` and
+`tools/package_images.ps1`.
+
+Packaging validates linked S-record/map, metadata and ISR targets, derives
+the aligned image length, patches metadata size and appends CRC32.
+No manual image-size define is needed. Clean rebuild after source/header
+changes instead of repackaging stale outputs.
+
+| File | Purpose |
+| --- | --- |
+| `DefaultBuild/RL78_F24_Boot_loader_CAN_app_update.bin` | Tool CAN App update |
+| `DefaultBuild/flash_app_variable_CRC.hex` | Packaged App-only programmer image |
+| `DefaultBuild/flash2000_3FBFF.hex` | Same App HEX named for the allowed partition; populated length remains variable |
+| `DefaultBuild/app_build_report.html` | Offline actual BIN metadata, byte addresses, CRC/SHA-256 and vector table |
+| Root `boot_app.hex` / `boot_app.bin` | Combined initial installation, generated when validated Boot MOT/map are available |
+| `DefaultBuild/RL78_F24_Boot_loader_CAN_app.mot` / `.map` | Raw compiler/debug/packaging inputs; not Tool update images |
+
+The packager excludes device-file physical/debug records from raw MOT.
+Use packaged HEX or combined HEX for programmer installation, and update BIN
+for Tool. Git distribution retains only the update BIN in DefaultBuild;
+rebuild to recreate reports/HEX/compiler outputs. Root combined images remain.
+See [publication and recovery](https://github.com/released/simple_renesas_isp_tool/blob/main/docs/GITHUB_PUBLISH_zh-TW.md)
+and the [browser build summary](https://released.github.io/slide_boot_loader_for_RL78/#device-app-build-report).
+
+## Debugging with E2 Lite
+
+App expects Boot to establish clock and handoff. For integrated testing,
+program combined Boot/App, retain physical vectors/option bytes, load App
+symbols and run from reset through Boot. Raw compiler records downloaded
+over Boot-owned addresses are not the production App-update path.
+See the [porting workflow](https://released.github.io/slide_boot_loader_for_RL78/#boot-app-porting)
+for startup/linker and symbol-loading considerations.
+
+## Verification requirements
+
+- Keep `.app_vectors` at `0x2000..0x20FF`, metadata at `0x2100..0x21FF`
+  and normal code at or above `0x2200`.
+- Check all 64 branch destinations, mapped RETI handlers and default BRK RETB.
+- Match linked identity with the editable headers; check image size, partition,
+  reserved bytes and independently calculated CRC.
+- After SC regeneration, reconcile App projections/hooks and no-`vect=` mapping.
+- After a complete three-project clean build, run `test.ps1` from Boot for
+  artifact/RAM RFD/metadata/vector/corruption tests. Optional native C/Tool
+  models use `-ToolProject <Tool checkout>`.
+- On hardware, confirm END, reset, APP_READY/live identity and the UART
+  tag/counter. Tool automatically saves a Firmware update report.
+
+Normal 500K update, CRC, App startup and UART counter are [verified](https://released.github.io/slide_isp_tool_for_RL78/#f24-device-update-example).
+Other rates, IRQ mappings, stress, cancellation/disconnect and power loss
+remain separate tests in the linked acceptance matrix.
