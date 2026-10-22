@@ -150,6 +150,29 @@ rebuild to recreate reports/HEX/compiler outputs. Root combined images remain.
 See [publication and recovery](https://github.com/released/simple_renesas_isp_tool/blob/main/docs/GITHUB_PUBLISH_zh-TW.md)
 and the [browser build summary](https://released.github.io/slide_boot_loader_for_RL78/#device-app-build-report).
 
+## FF-filled App test images
+
+After a successful App build, double-click `generate_test_bins.bat`, or run
+`powershell -NoProfile -ExecutionPolicy Bypass -File .\generate_test_bins.ps1`
+from this App directory. The matching sibling Boot supplies
+`tools/app_config.ps1`; no Python, SRecord or MCU compiler invocation
+is needed.
+
+The script reads the packaged `DefaultBuild/*_update.bin` and creates a new
+`test_bins/<batch>/` with test BINs, `manifest.csv` and `skipped.csv`.
+Default Flash budgets are 16/32/64/128/256/512 KiB, including Boot; the actual
+BIN subtracts the Boot reserve and respects metadata capacity. With the current
+App, lengths are 8/24/56/120/247 KiB; the last 1 KiB remains protected. An App
+that no longer fits a budget is skipped rather than truncated. One KiB is 1024 bytes.
+
+App code and vectors remain unchanged. FF padding starts at the original CRC
+location; metadata image_size at BIN `0x118..0x11B` is updated, and the new final
+four bytes contain little-endian CRC32. Version/build/policy remain unchanged.
+The original BIN is never overwritten. Test outputs are ignored by Git and
+can be regenerated after each App build; both generator scripts are shared.
+Use the existing Tool CAN Upgrade workflow and keep its JSON operation report.
+See the [test-image guide](https://released.github.io/slide_boot_loader_for_RL78/#device-test-images).
+
 ## Debugging with E2 Lite
 
 App expects Boot to establish clock and handoff. For integrated testing,
