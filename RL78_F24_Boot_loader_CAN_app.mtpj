@@ -43,13 +43,7 @@
       <TreeImageGuid>941832c1-fc3b-4e1b-94e8-01ea17128b42</TreeImageGuid>
       <ParentItem>76f247c0-0a47-461a-b088-233f5a2b5061</ParentItem>
     </Instance>
-    <Instance Guid="9e91a01f-4905-4fe9-b2f9-9791feeb6c5a">
-      <Name>app_main.c</Name>
-      <Type>File</Type>
-      <RelativePath>app_main.c</RelativePath>
-      <TreeImageGuid>941832c1-fc3b-4e1b-94e8-01ea17128b42</TreeImageGuid>
-      <ParentItem>76f247c0-0a47-461a-b088-233f5a2b5061</ParentItem>
-    </Instance>
+    
     <Instance Guid="d151c18e-5b3e-4d3b-9de6-4ee9852dd635">
       <Name>app_runtime_log.c</Name>
       <Type>File</Type>
@@ -618,7 +612,13 @@
       <RelativePath>src\smc_gen\r_rscanfd_rl78\doc\ja\r01an6334jj0100-rl78f24.pdf</RelativePath>
       <ParentItem>53f7a201-186e-4277-a5cb-2183655f4b7d</ParentItem>
     </Instance>
-  </Class>
+  
+<Instance Guid="1bc1006d-6715-4bd2-89db-3d8cb7d80b0f"><Name>main.c</Name><Type>File</Type><RelativePath>main.c</RelativePath><TreeImageGuid>941832c1-fc3b-4e1b-94e8-01ea17128b42</TreeImageGuid><ParentItem>76f247c0-0a47-461a-b088-233f5a2b5061</ParentItem></Instance>
+
+<Instance Guid="29825353-fabe-453a-bcf5-2a91e2b34c37"><Name>custom_func.c</Name><Type>File</Type><RelativePath>custom_func.c</RelativePath><TreeImageGuid>941832c1-fc3b-4e1b-94e8-01ea17128b42</TreeImageGuid><ParentItem>76f247c0-0a47-461a-b088-233f5a2b5061</ParentItem></Instance>
+
+<Instance Guid="090f73b0-0feb-4494-a6b3-2a2d5e59d06d"><Name>custom_func.h</Name><Type>File</Type><RelativePath>custom_func.h</RelativePath><TreeImageGuid>03cad1e8-2eb3-4cde-a8a3-982423631122</TreeImageGuid><ParentItem>76f247c0-0a47-461a-b088-233f5a2b5061</ParentItem></Instance>
+</Class>
   <Class Guid="fb98844b-2c27-4275-9804-f6e63e204da0">
     <Instance Guid="fb98844b-2c27-4275-9804-f6e63e204da0">
       <TypeOfStorageOfUserSettings>UserMtudFile</TypeOfStorageOfUserSettings>

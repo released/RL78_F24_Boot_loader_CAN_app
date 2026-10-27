@@ -7,13 +7,15 @@ void App_FormatRuntimeCounter(char *output, unsigned long counter)
     unsigned char count, index;
 
     count = 0U;
-    do {
+    do
+    {
         reverse[count++] = (char)('0' + (counter % 10UL));
         counter /= 10UL;
     } while (counter != 0UL);
 
     index = 0U;
-    while (count != 0U) {
+    while (count != 0U)
+    {
         output[index++] = reverse[--count];
     }
     output[index] = '\0';

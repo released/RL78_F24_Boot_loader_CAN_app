@@ -17,7 +17,6 @@
  * Device_TimerIsr handles the configured TAU0 channel 1 timer interrupt.
  * Keep a backslash on every entry except the last when extending the list.
  */
-#define APP_IRQ_HANDLERS(X) \
-    X(0x2E, Device_TimerIsr)
+#define APP_IRQ_HANDLERS(X) X(0x2E, Device_TimerIsr)
 
 #endif
