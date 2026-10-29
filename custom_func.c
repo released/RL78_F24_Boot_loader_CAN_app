@@ -1,3 +1,8 @@
+/* Project/API reading notes: Project-owned initialization and foreground work.
+ * The selected main/startup adapter calls hardware_init() once and loop() repeatedly.
+ * Keep application changes here so generated entry sources remain replaceable; lower-level APIs
+ * live in this project's hal directories.
+ */
 #include "platform.h"
 #include "device_board.h"
 #include "can_boot_transport.h"
@@ -36,6 +41,10 @@ static const unsigned long g_info[] = {
     IMAGE_POLICY_WORD,
     IMAGE_IRQ_ABI,
     CAN_BOOT_BLOCK_INFO};
+/* Handle App-mode discovery/control in foreground context.
+ * App does not erase/write itself; accepted ENTER is handed back to Boot through the reset
+ * contract.
+ */
 static void process_control(void)
 {
     can_frame_t request, reply;
@@ -118,6 +127,10 @@ static unsigned long g_custom_handoff, g_custom_updated, g_custom_log_counter;
 static uint16_t g_custom_last;
 static char g_custom_counter_text[APP_RUNTIME_COUNTER_BUFFER_SIZE];
 
+/* Initialize the role selected by this project before foreground processing.
+ * Preserve clock, image/handoff and peripheral/IRQ enable order when adding application
+ * initialization.
+ */
 void hardware_init(void)
 {
     g_custom_handoff = *(volatile unsigned long __far *)(BOOT_APP_SHARED_RAM_ADDRESS + 4UL);
@@ -151,6 +164,10 @@ void hardware_init(void)
     g_custom_log_counter = 0UL;
 }
 
+/* Foreground service point called repeatedly by the selected main adapter.
+ * Keep protocol/application work and text logging bounded so pending traffic and deferred actions
+ * can continue.
+ */
 void loop(void)
 {
 

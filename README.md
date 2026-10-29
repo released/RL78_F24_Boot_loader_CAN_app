@@ -6,13 +6,13 @@ handoff, rather than standalone reset installation.
 
 INFO health page `0x1B` reports APP_READY after initialization, CAN setup
 and an observed timer IRQ. Tool checks live App version/build/size after END,
-complementing Boot CRC validation. See [update confirmation](https://released.github.io/slide_isp_tool_for_RL78/#update-confirmation)
+complementing Boot CRC validation. See [update confirmation](https://released.github.io/slide_simple_renesas_isp_tool/#update-confirmation)
 and the [porting guide (zh-TW)](https://released.github.io/slide_boot_loader_for_RL78/#boot-app-porting).
 
 ## Public examples and checkout layout
 
 - [CAN Transfer benchmark](https://github.com/released/RL78_F24_CAN_Transfer).
-- [Required sibling Boot project](https://github.com/released/RL78_F24_Boot_loader_CAN).
+- [Matching Boot project](https://github.com/released/RL78_F24_Boot_loader_CAN).
 - [This App project](https://github.com/released/RL78_F24_Boot_loader_CAN_app).
 
 Keep the exact repository names under the same parent; remove `-main` after
@@ -101,18 +101,18 @@ on `0x701`, DLC 8, INFO page 0 with application state. ENTER `0x06`, DLC 1,
 is acknowledged before recording the request at `0xFF71C` and resetting.
 Boot consumes it and starts the valid-App inactivity window.
 Tool operation is `Discover Target` -> `Enter Boot` -> `Start Device Update`;
-discovery already reporting Boot skips ENTER. The [operation guide](https://released.github.io/slide_isp_tool_for_RL78/#mcu-can-device)
+discovery already reporting Boot skips ENTER. The [operation guide](https://released.github.io/slide_simple_renesas_isp_tool/#mcu-can-device)
 covers the 30-second pre-START timeout and re-discovery.
 
 The paired Boot `can_boot_config.h` owns IDs/rate declarations;
-`common/f24_device_config.h` owns timing overrides. For a different bitrate,
+`hal/device/f24_device_config.h` owns timing overrides. For a different bitrate,
 update the matching Boot/App configuration and follow the [250K/500K/1M steps](https://released.github.io/slide_boot_loader_for_RL78/#device-can-bitrate).
 Host Link baud and diagnostic UART baud are independent settings.
 
 `APP_IMAGE_VERSION_CONTROL` defaults to `0U`. An installed valid App with `1U`
 allows ordinary same/newer App semantic versions. Boot/App releases are
 independent; minimum Boot and IRQ/layout contracts establish compatibility.
-See [version policy and maintenance](https://released.github.io/slide_isp_tool_for_RL78/#force-old-version).
+See [version policy and maintenance](https://released.github.io/slide_simple_renesas_isp_tool/#force-old-version).
 CRC and version ordering are not cryptographic authentication.
 
 ## Build and artifacts
@@ -121,7 +121,7 @@ Use Windows PowerShell 5.1/.NET and CS+/CC-RL, without Python or SRecord.
 From this App directory:
 
 ```powershell
-..\RL78_F24_Boot_loader_CAN\build.ps1 -Kind app -AppProject .
+powershell -NoProfile -ExecutionPolicy Bypass -File .uild.ps1
 ```
 
 For initial combined images, build Boot first; `build.ps1 -Kind all` from
@@ -173,7 +173,7 @@ for startup/linker and symbol-loading considerations.
 - On hardware, confirm END, reset, APP_READY/live identity and the UART
   tag/counter. Tool automatically saves a Firmware update report.
 
-Normal 500K update, CRC, App startup and UART counter are [verified](https://released.github.io/slide_isp_tool_for_RL78/#f24-device-update-example).
+Normal 500K update, CRC, App startup and UART counter are [verified](https://released.github.io/slide_simple_renesas_isp_tool/#f24-device-update-example).
 Other rates, IRQ mappings, stress, cancellation/disconnect and power loss
 remain separate tests in the linked acceptance matrix.
 
@@ -198,3 +198,36 @@ these callbacks, retaining the existing communication service calls.
 The selected main/startup adapter owns entry and handoff. Generated peripheral
 files remain under `src/`; retain the project's MTPJ source selection when using
 Code Generator or Smart Configurator, then rebuild to validate the image and vectors.
+
+## Project layout and standalone build
+
+This project includes its own source files, configuration headers and build tools.
+A sibling Boot, App or Transfer checkout is not required to compile it.
+Keep the project directory name aligned with its `.mtpj` filename; remove a ZIP download suffix when necessary.
+Build with CS+ Rebuild, or run the local PowerShell entry:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
+```
+
+| Location | Responsibility |
+| --- | --- |
+| `custom_func.c` | Project initialization in `hardware_init()` and recurring work in `loop()`; runtime orchestration stays here |
+| `hal/can` | CAN service, controller driver and CAN adapter, when used by this project |
+| `hal/device` | Device, clock, peripheral and CPU handoff APIs |
+| `hal/image` | Metadata parser/profile, image validation and software CRC |
+| `hal/flash` | Flash access/geometry APIs, when required by the selected image |
+| `hal/isp` | Update/Transfer protocol and transport processing APIs |
+| Root configuration headers | Local MCU/Flash, handoff and communication contract |
+| `tools` and root PowerShell helpers | Local metadata/IRQ generation and linked-image checks |
+| `src` | Code Generator or Smart Configurator peripheral sources |
+
+Only the sources registered in this project's CS+ configuration are linked.
+Generated main/vector implementations must not become a second active entry.
+Retain the `custom_func.c` callbacks and the selected startup adapter after code generation.
+
+Boot and App each carry a local contract. Keep their MCU, Flash layout, image format,
+IRQ ABI, handoff and communication settings compatible when installing a pair.
+App releases are edited in `app_image_config.h` and `app_irq_handlers.h` in the App project.
+Rebuild the selected App to regenerate its metadata, vector table, update BIN and timing BINs.
+The App build does not read or rewrite a Boot checkout.
