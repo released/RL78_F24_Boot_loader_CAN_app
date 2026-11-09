@@ -5,6 +5,8 @@
  */
 #include "platform.h"
 #include "device_board.h"
+#define UART0_CONSOLE_RESET() Device_Reset()
+#include "uart0_reset_console.inc"
 #include "can_boot_transport.h"
 #include "app_identity.h"
 #include "app_runtime_log.h"
@@ -162,6 +164,7 @@ void hardware_init(void)
     }
     g_custom_last = get_tick();
     g_custom_log_counter = 0UL;
+    Device_Log("UART0 console: z/Z reset\r\n");
 }
 
 /* Foreground service point called repeatedly by the selected main adapter.
@@ -170,6 +173,8 @@ void hardware_init(void)
  */
 void loop(void)
 {
+    Uart0ResetPoll();
+
 
     process_control();
     Device_Heartbeat();
